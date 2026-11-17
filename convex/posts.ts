@@ -56,11 +56,11 @@ async function upsertPost(
   if (input.mediaIds.length > 20) fail("Up to 20 media files per post.");
   if (new Set(input.targets.map((t) => t.channelId)).size !== input.targets.length) fail("A channel was picked twice.");
 
-  const media: { kind: MediaKind; size: number }[] = [];
+  const media: { kind: MediaKind; size: number; compactSize?: number }[] = [];
   for (const id of input.mediaIds) {
     const m = await ctx.db.get(id);
     if (!m || m.workspaceId !== ws._id) fail("A media file was not found.");
-    media.push({ kind: m.kind, size: m.size });
+    media.push({ kind: m.kind, size: m.size, compactSize: m.compact?.size });
   }
   const channels: Doc<"channels">[] = [];
   for (const t of input.targets) {
@@ -290,7 +290,7 @@ async function hydrate(ctx: QueryCtx, post: Doc<"posts">) {
   const media = [];
   for (const id of post.mediaIds) {
     const m = await ctx.db.get(id);
-    if (m) media.push({ _id: m._id, kind: m.kind, name: m.name, size: m.size, url: await ctx.storage.getUrl(m.storageId) });
+    if (m) media.push({ _id: m._id, kind: m.kind, name: m.name, size: m.size, compactSize: m.compact?.size, url: await ctx.storage.getUrl(m.storageId) });
   }
   const author = await ctx.db.get(post.authorId);
   return { ...post, targets, media, authorName: author?.name ?? author?.email ?? "Someone" };

@@ -271,6 +271,38 @@ describe("scheduling and publishing", () => {
     expect(await t.run((ctx) => ctx.db.query("channelSecrets").collect())).toHaveLength(0);
   });
 
+  test("a large image goes to Bluesky as its shrunk copy, and is blocked without one", async () => {
+    const { t, owner, workspaceId, channelId } = await world();
+    handlers.unshift((url) => (url.endsWith("uploadBlob") ? json({ blob: { $type: "blob", ref: { $link: "cid" } } }) : undefined));
+    const store = (bytes: number, type: string) => t.run((ctx) => ctx.storage.store(new Blob([new Uint8Array(bytes)], { type })));
+
+    // No smaller copy: caught before scheduling, with a clear next step.
+    const bare = await owner.mutation(api.media.save, { workspaceId, storageId: await store(2_600_000, "image/jpeg"), name: "big.jpg" });
+    await expect(
+      owner.mutation(api.posts.save, { workspaceId, text: "pic", mediaIds: [bare], targets: [{ channelId }], mode: "now" }),
+    ).rejects.toThrow(/upload it again/i);
+
+    // With a smaller copy: the copy is what Bluesky receives.
+    const mediaId = await owner.mutation(api.media.save, {
+      workspaceId, storageId: await store(2_600_000, "image/jpeg"), name: "big.jpg",
+      compactStorageId: await store(900_000, "image/jpeg"),
+    });
+    const { postId } = await owner.mutation(api.posts.save, { workspaceId, text: "pic", mediaIds: [mediaId], targets: [{ channelId }], mode: "now" });
+    await drain(t);
+    expect((await owner.query(api.posts.get, { postId }))?.status).toBe("published");
+    const upload = calls.find((c) => c.url.endsWith("uploadBlob"))!;
+    expect((upload.init?.body as Blob).size).toBe(900_000);
+
+    // A "smaller copy" that is not actually small or not a JPEG is thrown away.
+    const bogus = await owner.mutation(api.media.save, {
+      workspaceId, storageId: await store(2_600_000, "image/jpeg"), name: "big.jpg",
+      compactStorageId: await store(2_400_000, "image/jpeg"),
+    });
+    const listed = await owner.query(api.media.list, { workspaceId });
+    expect(listed.find((m) => m._id === bogus)?.compactSize).toBeUndefined();
+    expect(listed.find((m) => m._id === mediaId)?.compactSize).toBe(900_000);
+  });
+
   test("bulk import queues every row", async () => {
     const { owner, workspaceId, channelId } = await world();
     const created = await owner.mutation(api.posts.bulkCreate, {

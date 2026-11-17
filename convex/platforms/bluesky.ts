@@ -1,6 +1,7 @@
 // Bluesky needs no developer app. The user creates an "app password" in
 // Bluesky settings and we store it encrypted. A fresh session is opened for
 // each post.
+import { BLUESKY_IMAGE_MAX } from "../shared/platforms";
 import { call, PublishError, type Account, type PublishInput, type PublishResult } from "./http";
 
 const PDS = "https://bsky.social/xrpc";
@@ -65,9 +66,11 @@ export async function publishBluesky(input: PublishInput): Promise<PublishResult
   if (images.length > 0) {
     const uploaded = [];
     for (const img of images) {
-      if (img.size > 2_000_000) throw new PublishError("Bluesky images must be under 2 MB.", "permanent");
+      // Use the shrunk copy when the original is over Bluesky's limit.
+      const file = img.size > BLUESKY_IMAGE_MAX && img.compact ? img.compact : img;
+      if (file.size > BLUESKY_IMAGE_MAX) throw new PublishError("An image is over Bluesky's 2 MB limit. Upload it again so it can be shrunk automatically.", "permanent");
       const up = await call("Bluesky image upload", `${PDS}/com.atproto.repo.uploadBlob`, {
-        method: "POST", headers: { ...auth, "Content-Type": img.contentType }, body: await img.blob(),
+        method: "POST", headers: { ...auth, "Content-Type": file.contentType }, body: await file.blob(),
       });
       uploaded.push({ alt: img.alt ?? "", image: up.body.blob });
     }

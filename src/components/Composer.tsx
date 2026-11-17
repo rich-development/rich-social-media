@@ -4,6 +4,7 @@ import { Clock, Hash, ImagePlus, LayoutTemplate, Send, Trash2, X } from "lucide-
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { charCount, PLATFORM_INFO, validateForPlatform } from "../../convex/shared/platforms";
+import { shrinkImage } from "../shrink";
 import { useWs } from "../App";
 import { fmtDateTime, fromLocalInput, toLocalInput } from "../lib";
 import { Loading, Modal, PlatformBadge, StatusPill, useToast } from "./ui";
@@ -11,15 +12,29 @@ import { Loading, Modal, PlatformBadge, StatusPill, useToast } from "./ui";
 type Options = { title?: string; link?: string; boardId?: string; privacy?: "public" | "unlisted" | "private" };
 type PerChannel = { text?: string; firstComment?: string; options?: Options };
 
-export async function uploadFiles(
-  files: File[], getUrl: () => Promise<string>, save: (a: { storageId: Id<"_storage">; name: string }) => Promise<Id<"media">>,
-): Promise<Id<"media">[]> {
+type SaveMedia = (a: { storageId: Id<"_storage">; name: string; compactStorageId?: Id<"_storage"> }) => Promise<Id<"media">>;
+
+async function putFile(getUrl: () => Promise<string>, body: Blob, type: string): Promise<Id<"_storage">> {
+  const res = await fetch(await getUrl(), { method: "POST", headers: { "Content-Type": type }, body });
+  if (!res.ok) throw new Error("Upload failed");
+  return (await res.json()).storageId;
+}
+
+/** Uploads files. Big images also get a smaller copy so they fit Bluesky. */
+export async function uploadFiles(files: File[], getUrl: () => Promise<string>, save: SaveMedia): Promise<Id<"media">[]> {
   const ids: Id<"media">[] = [];
   for (const file of files) {
-    const res = await fetch(await getUrl(), { method: "POST", headers: { "Content-Type": file.type }, body: file });
-    if (!res.ok) throw new Error("Upload failed");
-    const { storageId } = await res.json();
-    ids.push(await save({ storageId, name: file.name }));
+    const storageId = await putFile(getUrl, file, file.type);
+    let compactStorageId: Id<"_storage"> | undefined;
+    const small = await shrinkImage(file);
+    if (small) {
+      try {
+        compactStorageId = await putFile(getUrl, small, "image/jpeg");
+      } catch {
+        // The original still uploads. Only the Bluesky copy is missing.
+      }
+    }
+    ids.push(await save({ storageId, name: file.name, compactStorageId }));
   }
   return ids;
 }

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { cleanText, fail, requireMember } from "./lib/access";
+import { BLUESKY_IMAGE_MAX } from "./shared/platforms";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
@@ -17,8 +18,12 @@ export const generateUploadUrl = mutation({
 
 /** Registers an uploaded file. Type and size come from storage, not the client. */
 export const save = mutation({
-  args: { workspaceId: v.id("workspaces"), storageId: v.id("_storage"), name: v.string() },
-  handler: async (ctx, { workspaceId, storageId, name }) => {
+  args: {
+    workspaceId: v.id("workspaces"), storageId: v.id("_storage"), name: v.string(),
+    /** Optional smaller JPEG copy of an image, made by the browser. */
+    compactStorageId: v.optional(v.id("_storage")),
+  },
+  handler: async (ctx, { workspaceId, storageId, name, compactStorageId }) => {
     const { userId } = await requireMember(ctx, workspaceId, "editor");
     const file = await ctx.db.system.get(storageId);
     if (!file) fail("Upload not found.");
@@ -30,10 +35,19 @@ export const save = mutation({
     const tooBig = kind === "image" ? file.size > MAX_IMAGE : file.size > MAX_VIDEO;
     if (!kind || tooBig) {
       await ctx.storage.delete(storageId);
+      if (compactStorageId) await ctx.storage.delete(compactStorageId);
       fail(!kind ? "Use a JPG, PNG, WebP, GIF, MP4, MOV, or WebM file." : kind === "image" ? "Images can be up to 15 MB." : "Videos can be up to 250 MB.");
     }
+    // The smaller copy is checked the same way: real type and size from storage.
+    let compact;
+    if (compactStorageId && compactStorageId !== storageId) {
+      const small = await ctx.db.system.get(compactStorageId);
+      const ok = small && kind === "image" && small.contentType === "image/jpeg" && small.size <= BLUESKY_IMAGE_MAX && small.size < file.size;
+      if (ok) compact = { storageId: compactStorageId, size: small.size, contentType: "image/jpeg" };
+      else if (small) await ctx.storage.delete(compactStorageId);
+    }
     return await ctx.db.insert("media", {
-      workspaceId, storageId, kind, contentType: type, size: file.size,
+      workspaceId, storageId, kind, contentType: type, size: file.size, compact,
       name: cleanText(name, 200, "File name") || "Untitled", uploadedBy: userId,
     });
   },
@@ -47,7 +61,7 @@ export const list = query({
     const out = [];
     for (const m of rows) {
       out.push({
-        _id: m._id, kind: m.kind, name: m.name, size: m.size, alt: m.alt ?? "",
+        _id: m._id, kind: m.kind, name: m.name, size: m.size, compactSize: m.compact?.size, alt: m.alt ?? "",
         contentType: m.contentType, url: await ctx.storage.getUrl(m.storageId), createdAt: m._creationTime,
       });
     }
@@ -78,6 +92,7 @@ export const remove = mutation({
       if (posts.some((p) => p.mediaIds.includes(mediaId))) fail("This file is used by a post that has not gone out yet.");
     }
     await ctx.storage.delete(m.storageId);
+    if (m.compact) await ctx.storage.delete(m.compact.storageId);
     await ctx.db.delete(mediaId);
   },
 });

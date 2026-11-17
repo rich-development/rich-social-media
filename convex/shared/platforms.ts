@@ -74,7 +74,7 @@ export const PLATFORM_INFO: Record<Platform, PlatformInfo> = {
     label: "Bluesky", maxChars: 300, maxImages: 4, maxVideos: 0,
     requiresMedia: false, videoOnly: false, supportsFirstComment: false,
     provider: "bluesky", color: "#0085FF",
-    note: "Images must be under 2 MB each.",
+    note: "Large images are shrunk automatically to fit Bluesky's 2 MB limit.",
   },
   x: {
     label: "X", maxChars: 280, maxImages: 0, maxVideos: 0,
@@ -90,6 +90,9 @@ const RANK: Record<Role, number> = { viewer: 0, editor: 1, admin: 2, owner: 3 };
 export function roleAtLeast(role: Role, min: Role): boolean {
   return RANK[role] >= RANK[min];
 }
+
+/** Bluesky's cap on a post image, in bytes. */
+export const BLUESKY_IMAGE_MAX = 2_000_000;
 
 export type MediaKind = "image" | "video";
 
@@ -109,7 +112,7 @@ export function countHashtags(text: string): number {
 export function validateForPlatform(
   platform: Platform,
   text: string,
-  media: { kind: MediaKind; size?: number }[],
+  media: { kind: MediaKind; size?: number; compactSize?: number }[],
 ): string[] {
   const info = PLATFORM_INFO[platform];
   const problems: string[] = [];
@@ -130,8 +133,9 @@ export function validateForPlatform(
     problems.push(info.maxVideos === 0 ? "Video is not supported here." : "Only one video per post.");
   }
   if (platform === "instagram" && countHashtags(text) > 30) problems.push("Instagram allows 30 hashtags at most.");
-  if (platform === "bluesky" && images.some((m) => (m.size ?? 0) > 2_000_000)) {
-    problems.push("Bluesky images must be under 2 MB.");
+  // Bluesky gets the automatically shrunk copy when there is one.
+  if (platform === "bluesky" && images.some((m) => (m.compactSize ?? m.size ?? 0) > BLUESKY_IMAGE_MAX)) {
+    problems.push("An image is over Bluesky's 2 MB limit and has no smaller copy. Remove it and upload it again so it can be shrunk automatically.");
   }
   return problems;
 }

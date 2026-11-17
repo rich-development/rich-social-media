@@ -31,6 +31,8 @@ export type MediaItem = {
   alt?: string;
   /** Loads the file bytes. Only for networks that need a direct upload. */
   blob: () => Promise<Blob>;
+  /** Smaller JPEG copy of an image, when one was made at upload. */
+  compact?: { size: number; contentType: string; blob: () => Promise<Blob> };
 };
 
 export type PublishInput = {

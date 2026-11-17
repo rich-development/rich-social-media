@@ -29,7 +29,8 @@ describe("network rules", () => {
   });
   test("threads 500, bluesky 300 and 2 MB images, youtube video only", () => {
     expect(validateForPlatform("threads", "a".repeat(501), [])[0]).toMatch(/1 characters over the 500 limit/);
-    expect(validateForPlatform("bluesky", "ok", [{ kind: "image", size: 2_500_000 }])).toContain("Bluesky images must be under 2 MB.");
+    expect(validateForPlatform("bluesky", "ok", [{ kind: "image", size: 2_500_000 }])[0]).toMatch(/over Bluesky's 2 MB limit/);
+    expect(validateForPlatform("bluesky", "ok", [{ kind: "image", size: 2_500_000, compactSize: 900_000 }])).toEqual([]);
     expect(validateForPlatform("youtube", "title", [img])).toContain("Needs a video.");
     expect(validateForPlatform("youtube", "title", [vid])).toEqual([]);
     expect(validateForPlatform("x", "hello", [img])).toContain("Images are not supported here.");

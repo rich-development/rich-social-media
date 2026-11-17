@@ -50,7 +50,7 @@ export const claim = internalMutation({
       if (!m) continue;
       const url = await ctx.storage.getUrl(m.storageId);
       if (!url) continue;
-      media.push({ url, kind: m.kind, contentType: m.contentType, size: m.size, alt: m.alt, storageId: m.storageId });
+      media.push({ url, kind: m.kind, contentType: m.contentType, size: m.size, alt: m.alt, storageId: m.storageId, compact: m.compact });
     }
 
     await ctx.db.patch(targetId, { status: "publishing", attempts: target.attempts + 1, publishStartedAt: Date.now() });
@@ -117,13 +117,15 @@ export const publishTarget = internalAction({
     if (!job) return;
     try {
       const tokens = await freshTokens(ctx, job.channel._id, job.platform, job.secret);
+      const load = (storageId: Id<"_storage">) => async () => {
+        const blob = await ctx.storage.get(storageId);
+        if (!blob) throw new PublishError("A media file is missing.", "permanent");
+        return blob;
+      };
       const media: MediaItem[] = job.media.map((m) => ({
         url: m.url, kind: m.kind, contentType: m.contentType, size: m.size, alt: m.alt,
-        blob: async () => {
-          const blob = await ctx.storage.get(m.storageId);
-          if (!blob) throw new PublishError("A media file is missing.", "permanent");
-          return blob;
-        },
+        blob: load(m.storageId),
+        compact: m.compact && { size: m.compact.size, contentType: m.compact.contentType, blob: load(m.compact.storageId) },
       }));
       const result = await PUBLISHERS[job.platform]({
         text: job.text, firstComment: job.firstComment, options: job.options, media,

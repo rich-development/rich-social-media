@@ -121,6 +121,8 @@ export default defineSchema({
     size: v.number(),
     name: v.string(),
     alt: v.optional(v.string()),
+    /** A smaller JPEG copy for networks with tight size limits (Bluesky). Made in the browser at upload. */
+    compact: v.optional(v.object({ storageId: v.id("_storage"), size: v.number(), contentType: v.string() })),
     uploadedBy: v.id("users"),
   })
     .index("by_workspace", ["workspaceId"])
