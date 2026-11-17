@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type FormEvent } from "react";
 import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
-import { useClerk, UserButton } from "@clerk/react";
+import { useAuth, useClerk, UserButton } from "@clerk/react";
 import { BarChart3, CalendarDays, FolderOpen, LayoutDashboard, ListChecks, LogOut, PenSquare, Radio, Settings as Cog } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
@@ -40,9 +40,52 @@ takeInviteFromUrl();
 
 export default function App() {
   const { isLoading, isAuthenticated } = useConvexAuth();
-  if (isLoading) return <Loading />;
+  const { isSignedIn } = useAuth();
+  if (isLoading) return <Connecting what="Connecting to the backend" />;
+  // Clerk says yes but Convex says no: a setup mismatch, not a login problem.
+  if (!isAuthenticated && isSignedIn) return <Trouble kind="rejected" />;
   if (!isAuthenticated) return <Auth invited={!!sessionStorage.getItem(INVITE_KEY)} />;
   return <Signed />;
+}
+
+/** A loading state that explains itself instead of hanging forever. */
+function Connecting({ what }: { what: string }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+  if (slow) return <Trouble kind="unreachable" what={what} />;
+  return <Loading />;
+}
+
+function Trouble({ kind, what }: { kind: "rejected" | "unreachable"; what?: string }) {
+  const { signOut } = useClerk();
+  const backend = (() => {
+    try { return new URL(import.meta.env.VITE_CONVEX_URL as string).host; } catch { return "(not a valid address)"; }
+  })();
+  return (
+    <div className="mx-auto mt-20 max-w-xl card p-8 text-sm">
+      <h1 className="h1">{kind === "rejected" ? "Signed in, but the backend did not accept it" : "Still waiting on the backend"}</h1>
+      <p className="mt-2 text-muted">
+        {kind === "rejected"
+          ? "Clerk signed you in. Convex refused the sign-in token. This is a setup mismatch."
+          : `Stuck on: ${what}. The app cannot finish talking to Convex.`}
+      </p>
+      <p className="mt-4 font-semibold">This site is pointed at: <code className="rounded bg-canvas px-1">{backend}</code></p>
+      <ul className="mt-3 list-disc space-y-2 pl-5 text-muted">
+        {kind === "unreachable" && <li>That should be your Convex <b>dev</b> address and end in <code>.convex.cloud</code> (not <code>.convex.site</code>). It comes from <code>VITE_CONVEX_URL</code> in Netlify. Changing it needs a new deploy.</li>}
+        <li>The latest backend must be pushed: <code className="rounded bg-canvas px-1">npx convex dev --once</code> should end without errors.</li>
+        <li><code>CLERK_JWT_ISSUER_DOMAIN</code> on that same Convex deployment must exactly match the Clerk Frontend API URL for the Clerk instance whose key this site uses. No trailing slash.</li>
+        <li>The Convex integration must be on in that same Clerk instance.</li>
+      </ul>
+      <p className="mt-4 text-muted">The browser console (right-click, Inspect, Console) usually names the exact problem.</p>
+      <div className="mt-5 flex gap-2">
+        <button className="btn-primary" onClick={() => window.location.reload()}>Try again</button>
+        <button className="btn-ghost" onClick={() => void signOut()}>Sign out</button>
+      </div>
+    </div>
+  );
 }
 
 function Signed() {
@@ -84,7 +127,8 @@ function Signed() {
     setSelected(id);
   }
 
-  if (!registered || listing === undefined || joining) return <Loading />;
+  if (!registered) return <Connecting what="Registering your account with the backend" />;
+  if (listing === undefined || joining) return <Connecting what="Loading your workspaces" />;
   if (listing.workspaces.length === 0) return <Onboarding canCreate={listing.canCreate} onReady={pick} />;
   const ws = (listing.workspaces.find((w) => w._id === selected) ?? listing.workspaces[0]) as Workspace;
   return <Shell key={ws._id} ws={ws} all={listing.workspaces as Workspace[]} canCreate={listing.canCreate} onPick={pick} userLabel={me?.name ?? me?.email ?? ""} />;

@@ -30,7 +30,7 @@ export function ConvexProviderWithClerk({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 export const ClerkProvider = ConvexProviderWithClerk;
-export const useAuth = () => ({});
+export const useAuth = () => ({ isSignedIn: !window.location.search.includes("signedout") });
 export const useClerk = () => ({ signOut: async () => {}, openUserProfile: () => {} });
 export function UserButton() {
   return <span className="inline-block h-7 w-7 rounded-full bg-white/20" />;
