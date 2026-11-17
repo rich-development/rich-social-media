@@ -8,7 +8,8 @@ import App from "./App";
 import { ToastProvider } from "./components/ui";
 import "./index.css";
 
-const url = import.meta.env.VITE_CONVEX_URL as string | undefined;
+// Trim spaces and trailing slashes: "https://x.convex.cloud/" breaks the live connection.
+const url = (import.meta.env.VITE_CONVEX_URL as string | undefined)?.trim().replace(/\/+$/, "");
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
 function MissingConfig() {
