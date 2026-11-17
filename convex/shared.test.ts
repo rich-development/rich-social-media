@@ -19,7 +19,7 @@ describe("time zones", () => {
 });
 
 describe("network rules", () => {
-  const img = { kind: "image" as const, size: 500_000 };
+  const img = { kind: "image" as const, size: 1_500_000 };
   const vid = { kind: "video" as const, size: 5_000_000 };
   test("instagram needs media and caps hashtags", () => {
     expect(validateForPlatform("instagram", "hi", [])).toContain("Needs an image or video.");
@@ -27,9 +27,9 @@ describe("network rules", () => {
     const tags = Array.from({ length: 31 }, (_, i) => `#t${i}`).join(" ");
     expect(validateForPlatform("instagram", tags, [img])).toContain("Instagram allows 30 hashtags at most.");
   });
-  test("threads 500, bluesky 300 and 1 MB images, youtube video only", () => {
+  test("threads 500, bluesky 300 and 2 MB images, youtube video only", () => {
     expect(validateForPlatform("threads", "a".repeat(501), [])[0]).toMatch(/1 characters over the 500 limit/);
-    expect(validateForPlatform("bluesky", "ok", [{ kind: "image", size: 2_000_000 }])).toContain("Bluesky images must be under 1 MB.");
+    expect(validateForPlatform("bluesky", "ok", [{ kind: "image", size: 2_500_000 }])).toContain("Bluesky images must be under 2 MB.");
     expect(validateForPlatform("youtube", "title", [img])).toContain("Needs a video.");
     expect(validateForPlatform("youtube", "title", [vid])).toEqual([]);
     expect(validateForPlatform("x", "hello", [img])).toContain("Images are not supported here.");

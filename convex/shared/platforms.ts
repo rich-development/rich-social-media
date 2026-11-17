@@ -74,7 +74,7 @@ export const PLATFORM_INFO: Record<Platform, PlatformInfo> = {
     label: "Bluesky", maxChars: 300, maxImages: 4, maxVideos: 0,
     requiresMedia: false, videoOnly: false, supportsFirstComment: false,
     provider: "bluesky", color: "#0085FF",
-    note: "Images must be under 1 MB each.",
+    note: "Images must be under 2 MB each.",
   },
   x: {
     label: "X", maxChars: 280, maxImages: 0, maxVideos: 0,
@@ -130,8 +130,8 @@ export function validateForPlatform(
     problems.push(info.maxVideos === 0 ? "Video is not supported here." : "Only one video per post.");
   }
   if (platform === "instagram" && countHashtags(text) > 30) problems.push("Instagram allows 30 hashtags at most.");
-  if (platform === "bluesky" && images.some((m) => (m.size ?? 0) > 1_000_000)) {
-    problems.push("Bluesky images must be under 1 MB.");
+  if (platform === "bluesky" && images.some((m) => (m.size ?? 0) > 2_000_000)) {
+    problems.push("Bluesky images must be under 2 MB.");
   }
   return problems;
 }

@@ -65,7 +65,7 @@ export async function publishBluesky(input: PublishInput): Promise<PublishResult
   if (images.length > 0) {
     const uploaded = [];
     for (const img of images) {
-      if (img.size > 1_000_000) throw new PublishError("Bluesky images must be under 1 MB.", "permanent");
+      if (img.size > 2_000_000) throw new PublishError("Bluesky images must be under 2 MB.", "permanent");
       const up = await call("Bluesky image upload", `${PDS}/com.atproto.repo.uploadBlob`, {
         method: "POST", headers: { ...auth, "Content-Type": img.contentType }, body: await img.blob(),
       });
