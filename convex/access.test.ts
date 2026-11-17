@@ -27,9 +27,37 @@ describe("accounts and workspaces", () => {
     expect(await t.query(api.users.me, {})).toBeNull();
   });
 
-  test("email comes from the auth component, not the client", async () => {
+  test("email comes from the verified sign-in token", async () => {
     const { owner } = await world();
     expect((await owner.query(api.users.me, {}))?.email).toBe("owner@example.com");
+  });
+
+  test("signed in with Clerk but not yet registered here still gets nothing", async () => {
+    const { t, workspaceId } = await world();
+    const ghost = t.withIdentity({ issuer: "https://test.clerk.accounts.dev", subject: "ghost", tokenIdentifier: "https://test.clerk.accounts.dev|ghost" });
+    await expect(ghost.query(api.posts.list, { workspaceId })).rejects.toThrow(/sign in/i);
+    expect(await ghost.query(api.users.me, {})).toBeNull();
+  });
+
+  test("the owner allowlist only honors a verified email", async () => {
+    const t = setup();
+    process.env.OWNER_EMAILS = "boss@example.com";
+    try {
+      const faker = await signUp(t, "boss@example.com", { verified: false });
+      await expect(faker.mutation(api.workspaces.create, { name: "Mine", timezone: TZ })).rejects.toThrow(/invite/i);
+      const other = await signUp(t, "other@example.com");
+      await expect(other.mutation(api.workspaces.create, { name: "Mine", timezone: TZ })).rejects.toThrow(/invite/i);
+    } finally {
+      delete process.env.OWNER_EMAILS;
+    }
+    const t2 = setup();
+    process.env.OWNER_EMAILS = "boss@example.com";
+    try {
+      const boss = await signUp(t2, "boss@example.com");
+      await boss.mutation(api.workspaces.create, { name: "Mine", timezone: TZ });
+    } finally {
+      delete process.env.OWNER_EMAILS;
+    }
   });
 
   test("a second account cannot create a workspace or see the first one", async () => {

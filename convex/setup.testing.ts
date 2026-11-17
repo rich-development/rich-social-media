@@ -1,30 +1,25 @@
 /// <reference types="vite/client" />
-// Test harness: an in-memory Convex with the auth components registered.
+// Test harness: an in-memory Convex. Sign-in is simulated with the same
+// identity shape Convex builds from a verified Clerk token.
 import { convexTest } from "convex-test";
-import core from "@convex-dev/auth/test";
-import password from "@convex-dev/auth/components/password/test";
-import username from "@convex-dev/auth/components/username/test";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob(["./**/*.ts", "!./**/*.test.ts", "!./setup.testing.ts"]);
 
 export function setup() {
-  process.env.CONVEX_CLOUD_URL ??= "https://example.convex.cloud";
-  const t = convexTest(schema, modules);
-  core.registerCore(t);
-  password.registerPassword(t);
-  t.registerComponent("authUsername", username.schema, username.modules);
-  return t;
+  return convexTest(schema, modules);
 }
 
-/** Sign up a real account through the auth component and return a client acting as it. */
-export async function signUp(t: ReturnType<typeof setup>, email: string) {
-  const result = await t.mutation(api.auth.signUpWithUsernamePassword, {
-    username: email, password: "a long test passphrase 42!",
+export async function signUp(t: ReturnType<typeof setup>, email: string, opts: { verified?: boolean } = {}) {
+  const as = t.withIdentity({
+    issuer: "https://test.clerk.accounts.dev",
+    subject: `user_${email}`,
+    tokenIdentifier: `https://test.clerk.accounts.dev|user_${email}`,
+    email,
+    emailVerified: opts.verified ?? true,
+    name: email.split("@")[0],
   });
-  if (result.status !== "complete") throw new Error(`sign-up failed: ${JSON.stringify(result)}`);
-  const as = t.withIdentity(core.sessionIdentity(result.tokens));
-  await as.mutation(api.users.syncProfile, { name: email.split("@")[0] });
+  await as.mutation(api.users.store, {});
   return as;
 }

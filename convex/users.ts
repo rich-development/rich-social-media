@@ -1,49 +1,35 @@
-import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { components } from "./_generated/api";
-import { internalMutation, mutation, query } from "./_generated/server";
-import { cleanText, requireUser } from "./lib/access";
-
-/** Called by the auth component once per new account. */
-export const createUser = internalMutation({
-  args: { method: v.object({ name: v.literal("usernamePassword"), profile: v.any() }) },
-  returns: v.id("users"),
-  handler: async (ctx) => {
-    return await ctx.db.insert("users", {});
-  },
-});
+import { mutation, query } from "./_generated/server";
+import { fail } from "./lib/access";
 
 export const me = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) return null;
-    const user = await ctx.db.get(userId);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const user = await ctx.db
+      .query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier)).unique();
     if (!user) return null;
     return { _id: user._id, name: user.name ?? null, email: user.email ?? null };
   },
 });
 
 /**
- * Runs right after sign-up/sign-in. The email is read from the auth
- * component on the server, never taken from the client.
+ * Runs once after every sign-in. Creates or refreshes the app's record of the
+ * signed-in person. Name and email come from the verified Clerk token, never
+ * from anything the browser sends as an argument.
  */
-export const syncProfile = mutation({
-  args: { name: v.optional(v.string()) },
-  handler: async (ctx, { name }) => {
-    const userId = await requireUser(ctx);
-    const user = await ctx.db.get(userId);
-    if (!user) return null;
-    const patch: { name?: string; email?: string } = {};
-    if (!user.email) {
-      const username = await ctx.runQuery(components.authUsername.public.getUsername, { userId });
-      if (username) patch.email = username.toLowerCase();
-    }
-    if (name !== undefined) {
-      const clean = cleanText(name, 80, "Name");
-      if (clean) patch.name = clean;
-    }
-    if (Object.keys(patch).length > 0) await ctx.db.patch(userId, patch);
-    return null;
+export const store = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) fail("Please sign in.");
+    // Only a verified email is kept, since it is used for the owner allowlist.
+    const email = identity.email && identity.emailVerified ? identity.email.toLowerCase() : undefined;
+    const name = (identity.name ?? identity.givenName ?? undefined)?.slice(0, 80);
+    const existing = await ctx.db
+      .query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier)).unique();
+    if (!existing) return await ctx.db.insert("users", { tokenIdentifier: identity.tokenIdentifier, name, email });
+    if (existing.name !== name || existing.email !== email) await ctx.db.patch(existing._id, { name, email });
+    return existing._id;
   },
 });

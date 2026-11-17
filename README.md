@@ -20,7 +20,8 @@ A social media scheduling and publishing tool you own. One composer, one calenda
 
 | Area | State |
 | --- | --- |
-| Accounts, roles, invites, workspaces | Built. Covered by automated tests. |
+| Roles, invites, workspaces | Built. Covered by automated tests. |
+| Sign-in (Clerk) | Wired per the Convex and Clerk docs. Tests simulate a signed-in person. **Not yet run against a real Clerk instance.** |
 | Posts, queue, approvals, rescheduling, retries | Built. Covered by automated tests. |
 | Token encryption and the OAuth handshake | Built. Covered by automated tests using simulated network replies. |
 | Bluesky connector | Built. Tested against simulated replies, not the live service. |
@@ -32,20 +33,37 @@ The build environment could not reach Convex's servers, so nothing here has been
 
 ## Run it
 
-You need Node 20+ and a free Convex account.
+You need Node 20+, a free Convex account, and a Clerk application.
 
 ```bash
 npm install
-npx convex dev          # signs you in, creates the project, writes .env.local. Leave it running.
-npm run setup:keys      # in a second terminal: creates the token encryption key
+npx convex dev          # signs you in, links the project, writes .env.local. Leave it running.
+```
+
+The first push stops with an error about `CLERK_JWT_ISSUER_DOMAIN`. That is expected. Connect Clerk:
+
+1. In the Clerk dashboard, open your application and turn on the **Convex integration** (Integrations, or the JWT Templates page, "Convex" template). Either way works.
+2. Copy the **Frontend API URL** (also called the issuer). It looks like `https://your-app.clerk.accounts.dev`.
+3. Tell Convex about it: `npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-app.clerk.accounts.dev`
+4. Copy the **Publishable key** (starts with `pk_`) from Clerk's API keys page and add it to `.env.local`: `VITE_CLERK_PUBLISHABLE_KEY=pk_...`
+5. Make sure the token carries the email. The "Convex" JWT template includes it by default. If you used the newer integration instead, add `"email": "{{user.primary_email_address}}"` and `"email_verified": "{{user.email_verified}}"` under Sessions, Customize session token.
+
+The Clerk secret key (`sk_...`) is never needed here. Do not put it in this project.
+
+Then, in a second terminal:
+
+```bash
+npm run setup:keys      # creates the token encryption key
 npm run dev:frontend    # http://localhost:5173
 ```
 
-Then create your account in the app. **The first account on a fresh deployment becomes the owner**, so do this right away. To lock ownership to specific people regardless of order:
+Sign in, then name your first workspace. **The first person to create a workspace on a fresh deployment becomes the owner**, so do this right away. Better, lock ownership to specific verified emails before anyone signs in:
 
 ```bash
 npx convex env set OWNER_EMAILS "you@example.com,partner@example.com"
 ```
+
+Use a separate Clerk application for this tool, or reuse one from another app if you want the same logins. Reusing means anyone with an account there can sign in here, though they still see nothing without an invite.
 
 Want to click around before linking a backend? `npm run demo` opens the real UI with sample data. Nothing saves.
 
@@ -90,20 +108,20 @@ Nothing here costs money by default. Convex, Netlify, and every developer app ab
 
 Backend: `npx convex deploy`, then `npm run setup:keys -- --prod` and set the same env vars with `--prod`.
 
-Web app: any static host. `netlify.toml` is included with the build command, single-page routing, and security headers. Set `VITE_CONVEX_URL` to your production Convex address in the host's settings, and set `SITE_URL` on Convex to the site's address.
+Web app: any static host. `netlify.toml` is included with the build command, single-page routing, and security headers. Set `VITE_CONVEX_URL` and `VITE_CLERK_PUBLISHABLE_KEY` (the production `pk_live_` key) in the host's settings, set `CLERK_JWT_ISSUER_DOMAIN` on the production Convex deployment, and set `SITE_URL` on Convex to the site's address.
 
 ## Security
 
-- **Sign-in.** Convex Auth with email and password. Passwords are hashed by the auth component (Argon2id) with built-in rate limiting and common-password checks. Sessions expire after 14 idle days or 30 days total. There is no email verification or password reset by email yet (that needs an email service).
+- **Sign-in.** Handled by Clerk: passwords, password reset, email verification, social sign-in, and two-step sign-in if you turn it on in Clerk. This app never sees a password. Convex verifies every request's token against your Clerk instance.
 - **Access control.** Every function checks that the caller is signed in, belongs to the workspace, and holds the needed role. A non-member gets the same "not found" as a missing workspace.
-- **Who can get in.** Signing up alone grants nothing. Only the first account (or `OWNER_EMAILS`) can create a workspace. Everyone else needs an invite link, which works once, expires in 7 days, and is stored only as a hash.
+- **Who can get in.** Signing in alone grants nothing. Only the first person (or a verified email in `OWNER_EMAILS`) can create a workspace. Everyone else needs an invite link, which works once, expires in 7 days, and is stored only as a hash.
 - **Social tokens.** Encrypted with AES-256-GCM before storage, in a table no browser-facing query reads. The key lives only in Convex env vars. If you lose `TOKEN_ENCRYPTION_KEY`, reconnect the channels.
 - **OAuth.** Random single-use `state` (stored hashed, 10 minute life), PKCE where the network supports it, and the callback re-checks that the person is still an admin.
 - **No double posts.** Every publish job carries a token. Editing or rescheduling a post issues a new one and the old job does nothing. Convex runs scheduled actions at most once, and a watchdog flags anything stuck rather than retrying blindly.
 - **Uploads.** File type and size are read from storage on the server, not trusted from the browser.
 - **Secrets in git.** None. `.env*` files are ignored.
 
-Known gaps: no two-factor sign-in, no email-based password reset, uploaded media URLs are unguessable but public (the networks need to fetch them).
+Known gaps: two-step sign-in is only as strong as your Clerk settings, and uploaded media URLs are unguessable but public (the networks need to fetch them).
 
 ## Known limits
 
@@ -117,7 +135,7 @@ Known gaps: no two-factor sign-in, no email-based password reset, uploaded media
 ```
 convex/            backend
   schema.ts        tables
-  auth.ts          sign-in wiring
+  auth.config.ts   trusts tokens from your Clerk instance
   posts.ts         create, schedule, queue, approve, retry
   publisher.ts     the publishing engine
   channels.ts      connect and disconnect accounts

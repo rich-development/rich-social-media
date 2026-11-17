@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type FormEvent } from "react";
 import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
-import { useAuthActions } from "@convex-dev/auth/react";
+import { useClerk, UserButton } from "@clerk/react";
 import { BarChart3, CalendarDays, FolderOpen, LayoutDashboard, ListChecks, LogOut, PenSquare, Radio, Settings as Cog } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
@@ -47,25 +47,34 @@ export default function App() {
 
 function Signed() {
   const me = useQuery(api.users.me);
-  const listing = useQuery(api.workspaces.list);
-  const syncProfile = useMutation(api.users.syncProfile);
+  const store = useMutation(api.users.store);
+  const [registered, setRegistered] = useState(false);
+  const listing = useQuery(api.workspaces.list, registered ? {} : "skip");
   const acceptInvite = useAction(api.workspaces.acceptInvite);
   const toast = useToast();
   const [selected, setSelected] = useState<string | null>(() => localStorage.getItem("rs.ws"));
   const [joining, setJoining] = useState(() => !!sessionStorage.getItem(INVITE_KEY));
 
+  // First thing after sign-in: make sure the backend knows this person,
+  // then redeem a pending invite if there is one.
   useEffect(() => {
-    if (me && !me.email) void syncProfile({}).catch(() => {});
-  }, [me, syncProfile]);
-
-  useEffect(() => {
-    const token = sessionStorage.getItem(INVITE_KEY);
-    if (!token) return;
-    sessionStorage.removeItem(INVITE_KEY);
-    acceptInvite({ token })
-      .then((id) => { pick(id); toast.ok("You joined the workspace."); })
-      .catch((e) => toast.fail(e))
-      .finally(() => setJoining(false));
+    let cancelled = false;
+    (async () => {
+      try {
+        await store({});
+        const token = sessionStorage.getItem(INVITE_KEY);
+        if (token) {
+          sessionStorage.removeItem(INVITE_KEY);
+          pick(await acceptInvite({ token }));
+          toast.ok("You joined the workspace.");
+        }
+      } catch (e) {
+        toast.fail(e);
+      } finally {
+        if (!cancelled) { setRegistered(true); setJoining(false); }
+      }
+    })();
+    return () => { cancelled = true; };
     // Runs once after sign-in.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -75,7 +84,7 @@ function Signed() {
     setSelected(id);
   }
 
-  if (listing === undefined || joining) return <Loading />;
+  if (!registered || listing === undefined || joining) return <Loading />;
   if (listing.workspaces.length === 0) return <Onboarding canCreate={listing.canCreate} onReady={pick} />;
   const ws = (listing.workspaces.find((w) => w._id === selected) ?? listing.workspaces[0]) as Workspace;
   return <Shell key={ws._id} ws={ws} all={listing.workspaces as Workspace[]} canCreate={listing.canCreate} onPick={pick} userLabel={me?.name ?? me?.email ?? ""} />;
@@ -84,7 +93,7 @@ function Signed() {
 function Onboarding({ canCreate, onReady }: { canCreate: boolean; onReady: (id: string) => void }) {
   const create = useMutation(api.workspaces.create);
   const acceptInvite = useAction(api.workspaces.acceptInvite);
-  const { signOut } = useAuthActions();
+  const { signOut } = useClerk();
   const [name, setName] = useState("");
   const [link, setLink] = useState("");
   const [error, setError] = useState("");
@@ -149,7 +158,7 @@ function Shell({ ws, all, canCreate, onPick, userLabel }: { ws: Workspace; all: 
   const [composer, setComposer] = useState<ComposeOpts | null>(null);
   const counts = useQuery(api.posts.counts, { workspaceId: ws._id });
   const create = useMutation(api.workspaces.create);
-  const { signOut } = useAuthActions();
+  const { signOut } = useClerk();
   const navigate = useNavigate();
   const toast = useToast();
   const ctx = useMemo(() => ({
@@ -195,7 +204,10 @@ function Shell({ ws, all, canCreate, onPick, userLabel }: { ws: Workspace; all: 
             ))}
           </nav>
           <div className="border-t border-white/10 pt-3">
-            <div className="truncate px-2 text-xs text-white/50">{userLabel} · {ws.role}</div>
+            <div className="flex items-center gap-2 px-2">
+              <UserButton />
+              <div className="min-w-0 truncate text-xs text-white/50">{userLabel} · {ws.role}</div>
+            </div>
             <button className="mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-white/60 hover:bg-white/5 hover:text-white" onClick={() => void signOut()}>
               <LogOut size={16} /> Sign out
             </button>

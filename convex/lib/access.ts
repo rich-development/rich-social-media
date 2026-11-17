@@ -1,5 +1,4 @@
 import { ConvexError } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { roleAtLeast, type Role } from "../shared/platforms";
@@ -10,8 +9,17 @@ export function fail(message: string): never {
   throw new ConvexError(message);
 }
 
+/** The signed-in person's user id, or null. Identity is verified by Convex against Clerk. */
+export async function currentUserId(ctx: Ctx): Promise<Id<"users"> | null> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return null;
+  const user = await ctx.db
+    .query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier)).unique();
+  return user?._id ?? null;
+}
+
 export async function requireUser(ctx: Ctx): Promise<Id<"users">> {
-  const userId = await getAuthUserId(ctx);
+  const userId = await currentUserId(ctx);
   if (userId === null) fail("Please sign in.");
   return userId;
 }

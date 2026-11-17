@@ -14,7 +14,7 @@
     "setup:keys": "node scripts/setup-keys.mjs"
   },
   "dependencies": {
-    "@convex-dev/auth": "^2.0.0",
+    "@clerk/react": "^6.18.9",
     "convex": "^1.50.0",
     "lucide-react": "^1.73.0",
     "react": "^19.3.1",

@@ -40,10 +40,12 @@ export const vQueueSlot = v.object({
 
 export default defineSchema({
   users: defineTable({
+    /** Clerk identity ("issuer|subject"). Unique per person. */
+    tokenIdentifier: v.string(),
     name: v.optional(v.string()),
-    /** Copied from the auth component (the sign-in username). */
+    /** Verified email from Clerk. */
     email: v.optional(v.string()),
-  }).index("by_email", ["email"]),
+  }).index("by_token", ["tokenIdentifier"]),
 
   workspaces: defineTable({
     name: v.string(),

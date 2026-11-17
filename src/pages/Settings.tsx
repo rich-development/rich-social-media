@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { Plus, X } from "lucide-react";
+import { useClerk } from "@clerk/react";
 import { api } from "../../convex/_generated/api";
 import { ROLES, type Role } from "../../convex/shared/platforms";
 import { useWs } from "../App";
@@ -28,15 +29,13 @@ export default function Settings() {
   const revokeInvite = useMutation(api.workspaces.revokeInvite);
   const setRole = useMutation(api.workspaces.setRole);
   const removeMember = useMutation(api.workspaces.removeMember);
-  const changePassword = useMutation(api.auth.changePassword);
+  const clerk = useClerk();
 
   const [name, setName] = useState(ws.name);
   const [timezone, setTimezone] = useState(ws.timezone);
   const [slots, setSlots] = useState(ws.queueSlots);
   const [inviteRole, setInviteRole] = useState<Role>("editor");
   const [inviteLink, setInviteLink] = useState("");
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
   const admin = can("admin");
   const zones = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.("timeZone") ?? [ws.timezone];
 
@@ -48,17 +47,6 @@ export default function Settings() {
       setInviteLink(`${window.location.origin}/join?token=${token}`);
     } catch (e) {
       toast.fail(e);
-    }
-  }
-
-  async function submitPassword(e: FormEvent) {
-    e.preventDefault();
-    try {
-      const result = await changePassword({ currentPassword: current, newPassword: next, signOutOtherSessions: true });
-      if (result.success) { toast.ok("Password changed. Other devices were signed out."); setCurrent(""); setNext(""); }
-      else toast.fail(result.userError.error === "INVALID_CREDENTIALS" ? "Your current password is not right." : result.userError.error === "RATE_LIMITED" ? "Too many tries. Wait a few minutes." : "Pick a longer, less common password.");
-    } catch (err) {
-      toast.fail(err);
     }
   }
 
@@ -170,18 +158,11 @@ export default function Settings() {
           )}
         </section>
 
-        <form onSubmit={submitPassword} className="card h-fit space-y-4 p-5">
-          <h2 className="font-bold">Your password</h2>
-          <div>
-            <label className="label" htmlFor="pw-cur">Current password</label>
-            <input id="pw-cur" type="password" className="input" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" required />
-          </div>
-          <div>
-            <label className="label" htmlFor="pw-new">New password</label>
-            <input id="pw-new" type="password" className="input" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" required />
-          </div>
-          <button className="btn-primary">Change password</button>
-        </form>
+        <section className="card h-fit space-y-3 p-5">
+          <h2 className="font-bold">Your account</h2>
+          <p className="text-sm text-muted">Your password, two-step sign-in, and connected sign-in methods are managed by Clerk.</p>
+          <button className="btn-primary" onClick={() => clerk.openUserProfile()}>Manage account</button>
+        </section>
       </div>
     </>
   );

@@ -8,12 +8,15 @@ const mock = fileURLToPath(new URL("./scripts/demo/convex-react.tsx", import.met
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  define: { "import.meta.env.VITE_CONVEX_URL": JSON.stringify("https://demo.invalid") },
+  define: {
+    "import.meta.env.VITE_CONVEX_URL": JSON.stringify("https://demo.invalid"),
+    "import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify("demo"),
+  },
   resolve: {
     alias: [
       { find: /^convex\/react$/, replacement: mock },
-      { find: /^@convex-dev\/auth\/react$/, replacement: mock },
-      { find: /^@convex-dev\/auth\/methods\/username-password\/react$/, replacement: mock },
+      { find: /^convex\/react-clerk$/, replacement: mock },
+      { find: /^@clerk\/react$/, replacement: mock },
     ],
   },
   server: { port: 5174 },

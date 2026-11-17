@@ -18,20 +18,23 @@ export function useQuery(ref: any, args?: any) {
   return typeof value === "function" ? value(args) : value;
 }
 const noop = (ref: any) => async () => {
+  if (getFunctionName(ref) === "users:store") return null;
   console.info("Demo mode: skipped", getFunctionName(ref));
   throw new Error("Demo mode: changes are not saved.");
 };
 export const useMutation = noop;
 export const useAction = noop;
 
-// @convex-dev/auth/react
-export function ConvexAuthProvider({ children }: { children: ReactNode }) {
+// convex/react-clerk and @clerk/react
+export function ConvexProviderWithClerk({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
-export function useAuthActions() {
-  return { signOut: async () => {}, setSession: async () => {} };
+export const ClerkProvider = ConvexProviderWithClerk;
+export const useAuth = () => ({});
+export const useClerk = () => ({ signOut: async () => {}, openUserProfile: () => {} });
+export function UserButton() {
+  return <span className="inline-block h-7 w-7 rounded-full bg-white/20" />;
 }
-// @convex-dev/auth/methods/username-password/react
-const fake = async () => ({ status: "error" as const, userError: { error: "INVALID_CREDENTIALS" } });
-export const useSignInWithUsernamePassword = () => ({ signIn: fake, pending: false });
-export const useSignUpWithUsernamePassword = () => ({ signUp: fake, pending: false });
+export function SignIn() {
+  return <div className="card w-full max-w-sm p-8 text-center text-sm text-muted">Clerk's sign-in form shows here.</div>;
+}
