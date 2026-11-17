@@ -104,11 +104,18 @@ Nothing here costs money by default. Convex, Netlify, and every developer app ab
 - **Convex free tier limits.** Storage and bandwidth are capped. Video is what eats them. Delete old media from the Library.
 - **X.** Its API may bill for posting. That is why it is off.
 
-## Deploying
+## Deploying (no local setup needed)
 
-Backend: `npx convex deploy`, then `npm run setup:keys -- --prod` and set the same env vars with `--prod`.
+The repo is set up so Netlify does everything on each push to `main`: it deploys the Convex backend to production, then builds and publishes the web app.
 
-Web app: any static host. `netlify.toml` is included with the build command, single-page routing, and security headers. Set `VITE_CONVEX_URL` and `VITE_CLERK_PUBLISHABLE_KEY` (the production `pk_live_` key) in the host's settings, set `CLERK_JWT_ISSUER_DOMAIN` on the production Convex deployment, and set `SITE_URL` on Convex to the site's address.
+1. **Convex dashboard**, your project, switch to **Production**, Settings:
+   - Generate a **production deploy key** (Settings, Deploy keys). Copy it.
+   - Under Environment variables add `CLERK_JWT_ISSUER_DOMAIN`, `OWNER_EMAILS`, `TOKEN_ENCRYPTION_KEY`, and later `SITE_URL`.
+   - For `TOKEN_ENCRYPTION_KEY`, run `openssl rand -base64 32` in any terminal and paste the result. Set it once and never change it.
+2. **Netlify**: create a site from this GitHub repo. Under environment variables add `CONVEX_DEPLOY_KEY` (from step 1) and `VITE_CLERK_PUBLISHABLE_KEY`. Deploy.
+3. Back in Convex production env vars, set `SITE_URL` to the Netlify address.
+
+A Clerk development instance (`pk_test_` key) works on a Netlify address for testing. A Clerk production instance needs a domain you own.
 
 ## Security
 
