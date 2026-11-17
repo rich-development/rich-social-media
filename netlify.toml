@@ -1,8 +1,10 @@
-# One build does both: pushes the Convex backend to production, then builds
-# the web app pointed at it. Needs CONVEX_DEPLOY_KEY and
-# VITE_CLERK_PUBLISHABLE_KEY set in Netlify's environment variables.
+# Two modes, picked by which environment variables the Netlify site has:
+#  - Dev/preview: set VITE_CONVEX_URL to your Convex dev URL. Netlify builds
+#    the web app only. You push the backend yourself with `npx convex dev --once`.
+#  - Production: set CONVEX_DEPLOY_KEY instead. Netlify deploys the Convex
+#    production backend, then builds the web app pointed at it.
 [build]
-  command = "npx convex deploy --cmd 'npm run build'"
+  command = "if [ -n \"$CONVEX_DEPLOY_KEY\" ]; then npx convex deploy --cmd 'npm run build'; else npm run build; fi"
   publish = "dist"
 
 # Single-page app: every path serves index.html.

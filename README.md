@@ -104,18 +104,24 @@ Nothing here costs money by default. Convex, Netlify, and every developer app ab
 - **Convex free tier limits.** Storage and bandwidth are capped. Video is what eats them. Delete old media from the Library.
 - **X.** Its API may bill for posting. That is why it is off.
 
-## Deploying (no local setup needed)
+## Deploying
 
-The repo is set up so Netlify does everything on each push to `main`: it deploys the Convex backend to production, then builds and publishes the web app.
+Keep the pairs matched: Clerk development with Convex dev, Clerk production with Convex production.
 
-1. **Convex dashboard**, your project, switch to **Production**, Settings:
-   - Generate a **production deploy key** (Settings, Deploy keys). Copy it.
-   - Under Environment variables add `CLERK_JWT_ISSUER_DOMAIN`, `OWNER_EMAILS`, `TOKEN_ENCRYPTION_KEY`, and later `SITE_URL`.
-   - For `TOKEN_ENCRYPTION_KEY`, run `openssl rand -base64 32` in any terminal and paste the result. Set it once and never change it.
-2. **Netlify**: create a site from this GitHub repo. Under environment variables add `CONVEX_DEPLOY_KEY` (from step 1) and `VITE_CLERK_PUBLISHABLE_KEY`. Deploy.
-3. Back in Convex production env vars, set `SITE_URL` to the Netlify address.
+**Dev (testing).** You push the backend from a terminal. Netlify builds the web app.
 
-A Clerk development instance (`pk_test_` key) works on a Netlify address for testing. A Clerk production instance needs a domain you own.
+1. Set the dev backend's values: `npx convex env set CLERK_JWT_ISSUER_DOMAIN <Clerk dev Frontend API URL>`, `npx convex env set OWNER_EMAILS <your email>`, then `npm run setup:keys`.
+2. Push the backend: `npx convex dev --once`. Run this again after any pull that changes the `convex/` folder.
+3. Netlify: create a site from this repo with `VITE_CONVEX_URL` (your Convex dev URL) and `VITE_CLERK_PUBLISHABLE_KEY` (`pk_test_...`).
+4. `npx convex env set SITE_URL <the Netlify address>`.
+
+**Production.** Netlify does both on every push to `main`.
+
+1. Convex dashboard, Production: generate a deploy key, and add `CLERK_JWT_ISSUER_DOMAIN` (Clerk production), `OWNER_EMAILS`, `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`, set once, never change), and `SITE_URL`.
+2. Netlify: a site on a domain you own, with `CONVEX_DEPLOY_KEY` and `VITE_CLERK_PUBLISHABLE_KEY` (`pk_live_...`). Do not set `VITE_CONVEX_URL` here; the deploy fills it in.
+3. Clerk production needs that domain and its DNS records.
+
+Moving from dev to production starts fresh: accounts, workspaces, and connected channels do not carry over.
 
 ## Security
 
