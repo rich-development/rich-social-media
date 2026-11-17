@@ -15,7 +15,7 @@ function b64decode(text: string): Uint8Array<ArrayBuffer> {
 
 async function key(): Promise<CryptoKey> {
   const raw = process.env.TOKEN_ENCRYPTION_KEY;
-  if (!raw) throw new Error("TOKEN_ENCRYPTION_KEY is not set. Run `npm run setup:auth`.");
+  if (!raw) throw new Error("TOKEN_ENCRYPTION_KEY is not set. Run `npm run setup:keys`.");
   const bytes = b64decode(raw);
   if (bytes.length !== 32) throw new Error("TOKEN_ENCRYPTION_KEY must be 32 bytes, base64 encoded.");
   return await crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt", "decrypt"]);

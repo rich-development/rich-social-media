@@ -4,7 +4,7 @@ import {
   type Account, type Provider, type PublishInput, type PublishResult,
 } from "./http";
 
-const graph = () => `https://graph.facebook.com/${process.env.META_GRAPH_VERSION ?? "v24.0"}`;
+const graph = () => `https://graph.facebook.com/${process.env.META_GRAPH_VERSION ?? "v26.0"}`;
 const THREADS = "https://graph.threads.net";
 
 // Graph API signals an expired or revoked token with error code 190.
@@ -28,7 +28,7 @@ export const meta: Provider = {
         "instagram_basic", "instagram_content_publish", "instagram_manage_comments", "business_management",
       ].join(","),
     });
-    return `https://www.facebook.com/${process.env.META_GRAPH_VERSION ?? "v24.0"}/dialog/oauth?${q}`;
+    return `https://www.facebook.com/${process.env.META_GRAPH_VERSION ?? "v26.0"}/dialog/oauth?${q}`;
   },
   async exchange({ code, redirectUri }) {
     const short = await post("Facebook sign-in", `${graph()}/oauth/access_token`, {

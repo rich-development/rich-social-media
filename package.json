@@ -7,10 +7,11 @@
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
     "dev:frontend": "vite",
     "dev:backend": "convex dev",
-    "build": "tsc -b && vite build",
-    "typecheck": "tsc -b && tsc -p convex --noEmit",
+    "build": "tsc -p . --noEmit && vite build",
+    "typecheck": "tsc -p . --noEmit && tsc -p convex --noEmit",
     "test": "vitest run",
-    "setup:auth": "node scripts/setup-auth.mjs"
+    "demo": "vite --config vite.demo.config.ts",
+    "setup:keys": "node scripts/setup-keys.mjs"
   },
   "dependencies": {
     "@convex-dev/auth": "^2.0.0",
