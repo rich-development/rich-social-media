@@ -97,6 +97,10 @@ npx convex env set SITE_URL https://your-app-address
 
 Optional: `META_EXTRA_SCOPES=instagram_manage_comments` turns on first comments for Instagram once that permission is enabled on your Meta app. Also `META_GRAPH_VERSION` (default `v26.0`) and `LINKEDIN_API_VERSION` (default `202601`) if a network retires the default version.
 
+## Privacy and terms pages
+
+The app serves public pages at `/privacy` and `/terms`. Google, Meta, and TikTok ask for these links before a developer app can go live. Set `VITE_OPERATOR_NAME` and `VITE_CONTACT_EMAIL` in the host's environment variables so they name you and give a contact. They are a plain-language starting point, not legal advice.
+
 ## Costs
 
 Nothing here costs money by default. Convex, Netlify, and every developer app above have free tiers. Things that could cost money later:

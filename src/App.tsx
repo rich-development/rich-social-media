@@ -14,6 +14,7 @@ import Auth from "./pages/Auth";
 import Calendar from "./pages/Calendar";
 import Channels from "./pages/Channels";
 import Dashboard from "./pages/Dashboard";
+import { Privacy, Terms } from "./pages/Legal";
 import Library from "./pages/Library";
 import Posts from "./pages/Posts";
 import Settings from "./pages/Settings";
@@ -39,6 +40,14 @@ function takeInviteFromUrl() {
 takeInviteFromUrl();
 
 export default function App() {
+  // Public pages, readable without signing in.
+  const path = window.location.pathname.replace(/\/+$/, "");
+  if (path === "/privacy") return <Privacy />;
+  if (path === "/terms") return <Terms />;
+  return <Gate />;
+}
+
+function Gate() {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const { isSignedIn } = useAuth();
   if (isLoading) return <Connecting what="Connecting to the backend" />;

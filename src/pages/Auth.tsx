@@ -15,6 +15,7 @@ export default function Auth({ invited }: { invited: boolean }) {
       <div className="flex flex-col items-center justify-center gap-4 p-6">
         {invited && <p className="max-w-sm rounded-lg bg-gold-soft px-3 py-2 text-sm text-warn">You have an invite. Sign in or create an account to join.</p>}
         <SignIn routing="hash" />
+        <p className="text-xs text-muted"><a className="hover:underline" href="/privacy">Privacy</a> · <a className="hover:underline" href="/terms">Terms</a></p>
       </div>
     </div>
   );
