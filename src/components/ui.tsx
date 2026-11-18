@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { Component, createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { PLATFORM_INFO, type Platform } from "../../convex/shared/platforms";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -121,4 +121,35 @@ export function ActivityList({ items, tz, onOpen }: { items: ActivityItem[]; tz:
       })}
     </ul>
   );
+}
+
+/**
+ * Catches a crash inside a page so one bad screen never blanks the whole app.
+ * Give it a `key` that changes on navigation so moving to another page clears it.
+ */
+export class PageBoundary extends Component<{ children: ReactNode }, { message: string | null }> {
+  state = { message: null as string | null };
+  static getDerivedStateFromError(error: unknown) {
+    return { message: errMsg(error) };
+  }
+  componentDidCatch(error: unknown) {
+    console.error("Page error:", error);
+  }
+  render() {
+    if (this.state.message === null) return this.props.children;
+    return (
+      <div className="card mx-auto mt-10 max-w-xl p-8 text-sm">
+        <h1 className="h1">This page hit a problem</h1>
+        <p className="mt-2 text-muted">{this.state.message}</p>
+        <p className="mt-3 text-muted">
+          The rest of the app still works. If the site was just updated, the backend may be one step behind. Running{" "}
+          <code className="rounded bg-canvas px-1">npx convex dev --once</code> after a <code className="rounded bg-canvas px-1">git pull</code> brings it level.
+        </p>
+        <div className="mt-5 flex gap-2">
+          <button className="btn-primary" onClick={() => this.setState({ message: null })}>Try again</button>
+          <button className="btn-ghost" onClick={() => window.location.reload()}>Reload</button>
+        </div>
+      </div>
+    );
+  }
 }

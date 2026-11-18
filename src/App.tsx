@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type FormEvent } from "react";
-import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useAuth, useClerk, UserButton, useUser } from "@clerk/react";
 import { BarChart3, CalendarDays, FolderOpen, LayoutDashboard, ListChecks, LogOut, PenSquare, Radio, Settings as Cog } from "lucide-react";
@@ -7,7 +7,7 @@ import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
 import { roleAtLeast, type Role } from "../convex/shared/platforms";
 import Composer from "./components/Composer";
-import { Loading, useToast } from "./components/ui";
+import { Loading, PageBoundary, useToast } from "./components/ui";
 import { errMsg } from "./lib";
 import Activity from "./pages/Activity";
 import Analytics from "./pages/Analytics";
@@ -219,6 +219,7 @@ function Shell({ ws, all, canCreate, onPick, userLabel }: { ws: Workspace; all: 
   const create = useMutation(api.workspaces.create);
   const { signOut } = useClerk();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const ctx = useMemo(() => ({
     ws, can: (min: Role) => roleAtLeast(ws.role, min), compose: (o: ComposeOpts = {}) => setComposer(o),
@@ -284,6 +285,7 @@ function Shell({ ws, all, canCreate, onPick, userLabel }: { ws: Workspace; all: 
             {ctx.can("editor") && <button className="ml-auto whitespace-nowrap rounded-md bg-gold px-2.5 py-1.5 text-xs font-bold" onClick={() => setComposer({})}>New post</button>}
           </div>
           <main className="mx-auto max-w-6xl p-5 sm:p-8">
+            <PageBoundary key={location.pathname}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/calendar" element={<Calendar />} />
@@ -295,10 +297,11 @@ function Shell({ ws, all, canCreate, onPick, userLabel }: { ws: Workspace; all: 
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Dashboard />} />
             </Routes>
+            </PageBoundary>
           </main>
         </div>
       </div>
-      {composer && <Composer postId={composer.postId} at={composer.at} onClose={() => setComposer(null)} />}
+      {composer && <PageBoundary key="composer"><Composer postId={composer.postId} at={composer.at} onClose={() => setComposer(null)} /></PageBoundary>}
     </WsCtx.Provider>
   );
 }
