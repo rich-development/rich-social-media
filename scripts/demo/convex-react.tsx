@@ -31,6 +31,7 @@ export function ConvexProviderWithClerk({ children }: { children: ReactNode }) {
 }
 export const ClerkProvider = ConvexProviderWithClerk;
 export const useAuth = () => ({ isSignedIn: !window.location.search.includes("signedout") });
+export const useUser = () => ({ user: { fullName: "Sample Owner", firstName: "Sample", primaryEmailAddress: { emailAddress: "owner@example.com" } } });
 export const useClerk = () => ({ signOut: async () => {}, openUserProfile: () => {} });
 export function UserButton() {
   return <span className="inline-block h-7 w-7 rounded-full bg-white/20" />;

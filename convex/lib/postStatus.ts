@@ -43,7 +43,7 @@ export async function cancelTargets(ctx: MutationCtx, postId: Id<"posts">) {
 /** Roll the per-channel results up into the post's overall status. */
 export async function recomputePostStatus(ctx: MutationCtx, postId: Id<"posts">) {
   const post = await ctx.db.get(postId);
-  if (!post || post.status === "draft" || post.status === "pending_approval") return;
+  if (!post || post.status === "draft" || post.status === "pending_approval") return null;
   const targets = await targetsOf(ctx, postId);
   const count = (s: Doc<"postTargets">["status"]) => targets.filter((t) => t.status === s).length;
   const open = count("pending") + count("publishing");
@@ -55,4 +55,5 @@ export async function recomputePostStatus(ctx: MutationCtx, postId: Id<"posts">)
   const patch: Partial<Doc<"posts">> = { status, updatedAt: Date.now() };
   if ((status === "published" || status === "partial") && !post.publishedAt) patch.publishedAt = Date.now();
   await ctx.db.patch(postId, patch);
+  return { status, published: count("published"), total: targets.length };
 }

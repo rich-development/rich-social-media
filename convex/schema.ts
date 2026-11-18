@@ -43,8 +43,11 @@ export default defineSchema({
     /** Clerk identity ("issuer|subject"). Unique per person. */
     tokenIdentifier: v.string(),
     name: v.optional(v.string()),
-    /** Verified email from Clerk. */
+    /** Verified email from Clerk. The only email used for access decisions. */
     email: v.optional(v.string()),
+    /** Name and email as the browser reports them from Clerk. For display only, never for access. */
+    displayName: v.optional(v.string()),
+    displayEmail: v.optional(v.string()),
   }).index("by_token", ["tokenIdentifier"]),
 
   workspaces: defineTable({
@@ -192,5 +195,7 @@ export default defineSchema({
     detail: v.optional(v.string()),
     postId: v.optional(v.id("posts")),
     level: v.union(v.literal("info"), v.literal("error")),
-  }).index("by_workspace", ["workspaceId"]),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_level", ["workspaceId", "level"]),
 });

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { cleanText, fail, logActivity, requireMember } from "./lib/access";
+import { cleanText, fail, logActivity, requireMember, userName } from "./lib/access";
 import { cancelTargets, recomputePostStatus, scheduleTargets, targetsOf } from "./lib/postStatus";
 import { nextQueueSlot } from "./lib/time";
 import { vPostStatus, vTargetOptions } from "./schema";
@@ -145,7 +145,8 @@ export const save = mutation({
     const action = {
       draft: "Draft saved", pending_approval: "Sent for approval", scheduled: input.mode === "now" ? "Publishing now" : "Post scheduled",
     }[result.status as "draft" | "pending_approval" | "scheduled"];
-    await logActivity(ctx, { workspaceId, userId, postId: result.postId, action });
+    // Saving a draft is routine and would only clutter the log.
+    if (result.status !== "draft") await logActivity(ctx, { workspaceId, userId, postId: result.postId, action });
     return result;
   },
 });
@@ -293,7 +294,7 @@ async function hydrate(ctx: QueryCtx, post: Doc<"posts">) {
     if (m) media.push({ _id: m._id, kind: m.kind, name: m.name, size: m.size, compactSize: m.compact?.size, url: await ctx.storage.getUrl(m.storageId) });
   }
   const author = await ctx.db.get(post.authorId);
-  return { ...post, targets, media, authorName: author?.name ?? author?.email ?? "Someone" };
+  return { ...post, targets, media, authorName: userName(author) };
 }
 
 export const list = query({

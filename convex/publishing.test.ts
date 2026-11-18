@@ -303,6 +303,28 @@ describe("scheduling and publishing", () => {
     expect(listed.find((m) => m._id === mediaId)?.compactSize).toBe(900_000);
   });
 
+  test("activity gets one line per published post, and people are shown by name", async () => {
+    const { t, owner, workspaceId, channelId } = await world();
+    const { postId } = await owner.mutation(api.posts.save, { workspaceId, text: "Hello", mediaIds: [], targets: [{ channelId }], mode: "now" });
+    await owner.mutation(api.posts.save, { workspaceId, text: "Just a draft", mediaIds: [], targets: [], mode: "draft" });
+    await drain(t);
+    const { items } = await owner.query(api.workspaces.activity, { workspaceId, limit: 50 });
+    expect(items.filter((a) => a.action === "Published")).toHaveLength(1);
+    expect(items.find((a) => a.action === "Published")?.detail).toBe("1 of 1 channel: Damon");
+    expect(items.some((a) => a.action === "Draft saved")).toBe(false);
+    expect(items.find((a) => a.action === "Publishing now")?.who).toBe("owner");
+    expect((await owner.query(api.posts.get, { postId }))?.authorName).toBe("owner");
+    // Problems filter shows only failures.
+    expect((await owner.query(api.workspaces.activity, { workspaceId, level: "error" })).items).toHaveLength(0);
+
+    // A token with no name or email falls back to what the browser reports, for display only.
+    const bare = t.withIdentity({ issuer: "https://test.clerk.accounts.dev", subject: "bare", tokenIdentifier: "https://test.clerk.accounts.dev|bare" });
+    await bare.mutation(api.users.store, { displayName: "Damon Rich", displayEmail: "Someone@Example.com" });
+    expect(await bare.query(api.users.me, {})).toMatchObject({ name: "Damon Rich", email: "someone@example.com" });
+    const row = (await t.run((ctx) => ctx.db.query("users").collect())).find((u) => u.displayName === "Damon Rich")!;
+    expect(row.email).toBeUndefined(); // never promoted to the verified field
+  });
+
   test("bulk import queues every row", async () => {
     const { owner, workspaceId, channelId } = await world();
     const created = await owner.mutation(api.posts.bulkCreate, {

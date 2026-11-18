@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { roleAtLeast, type Role } from "../shared/platforms";
 
@@ -62,4 +62,12 @@ export function cleanText(value: string, max: number, what: string): string {
   const text = value.trim();
   if (text.length > max) fail(`${what} is too long (max ${max} characters).`);
   return text;
+}
+
+/** How a person is shown in the app. */
+export function userName(user: Doc<"users"> | null): string {
+  return user?.name ?? user?.displayName ?? user?.email ?? user?.displayEmail ?? "Unknown user";
+}
+export function userEmail(user: Doc<"users"> | null): string | null {
+  return user?.email ?? user?.displayEmail ?? null;
 }

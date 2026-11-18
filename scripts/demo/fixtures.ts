@@ -59,12 +59,13 @@ export const FIXTURES: Record<string, any> = {
     ],
   },
   "workspaces:invites": [{ _id: "i1", role: "viewer", note: null, expiresAt: now + 5 * DAY }],
-  "workspaces:activity": [
+  "workspaces:activity": { hasMore: false, items: [
     { _id: "a1", at: now - HOUR, action: "Post scheduled", detail: null, level: "info", who: "Sample Owner", postId: "p1" },
     { _id: "a2", at: now - 5 * HOUR, action: "Publishing failed", detail: "LinkedIn: Sample Owner. LinkedIn post failed (401): token expired", level: "error", who: null, postId: "p7" },
-    { _id: "a3", at: now - DAY, action: "Published", detail: "Instagram: richcoaching", level: "info", who: null, postId: "p6" },
+    { _id: "a3", at: now - DAY, action: "Published", detail: "2 of 2 channels: richcoaching, Rich Coaching", level: "info", who: null, postId: "p6" },
     { _id: "a4", at: now - 2 * DAY, action: "Sent for approval", detail: null, level: "info", who: "Sample Editor", postId: "p4" },
-  ],
+  ] },
+
   "channels:list": {
     channels,
     providers: ["meta", "threads", "linkedin", "google", "tiktok", "pinterest", "bluesky", "x"].map((id) => ({

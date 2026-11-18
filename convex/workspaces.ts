@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalMutation, mutation, query, type QueryCtx } from "./_generated/server";
-import { cleanText, fail, logActivity, requireMember, requireUser } from "./lib/access";
+import { cleanText, fail, logActivity, requireMember, requireUser, userEmail, userName } from "./lib/access";
 import { randomToken, sha256Hex } from "./lib/crypto";
 import { isValidTimeZone } from "./lib/time";
 import { vQueueSlot, vRole } from "./schema";
@@ -108,7 +108,7 @@ export const members = query({
     const out = [];
     for (const m of rows) {
       const u = await ctx.db.get(m.userId);
-      out.push({ _id: m._id, userId: m.userId, role: m.role, name: u?.name ?? null, email: u?.email ?? null, isMe: m.userId === userId });
+      out.push({ _id: m._id, userId: m.userId, role: m.role, name: userName(u), email: userEmail(u), isMe: m.userId === userId });
     }
     return { members: out, myRole: role };
   },
@@ -232,25 +232,43 @@ export const redeemInvite = internalMutation({
 });
 
 export const activity = query({
-  args: { workspaceId: v.id("workspaces") },
-  handler: async (ctx, { workspaceId }) => {
+  args: {
+    workspaceId: v.id("workspaces"),
+    /** "error" shows only problems. */
+    level: v.optional(v.union(v.literal("info"), v.literal("error"))),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { workspaceId, level, limit }) => {
     await requireMember(ctx, workspaceId);
-    const rows = await ctx.db
-      .query("activity").withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
-      .order("desc").take(60);
+    const take = Math.min(Math.max(limit ?? 8, 1), 300);
+    const base = level
+      ? ctx.db.query("activity").withIndex("by_workspace_level", (q) => q.eq("workspaceId", workspaceId).eq("level", level))
+      : ctx.db.query("activity").withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId));
+    // One extra row tells the page whether there is more to load.
+    const rows = await base.order("desc").take(take + 1);
     const names = new Map<string, string>();
-    const out = [];
-    for (const r of rows) {
+    const items = [];
+    for (const r of rows.slice(0, take)) {
       let who: string | null = null;
       if (r.userId) {
-        if (!names.has(r.userId)) {
-          const u = await ctx.db.get(r.userId);
-          names.set(r.userId, u?.name ?? u?.email ?? "Someone");
-        }
+        if (!names.has(r.userId)) names.set(r.userId, userName(await ctx.db.get(r.userId)));
         who = names.get(r.userId)!;
       }
-      out.push({ _id: r._id, at: r._creationTime, action: r.action, detail: r.detail ?? null, level: r.level, who, postId: r.postId ?? null });
+      items.push({ _id: r._id, at: r._creationTime, action: r.action, detail: r.detail ?? null, level: r.level, who, postId: r.postId ?? null });
     }
-    return out;
+    return { items, hasMore: rows.length > take };
+  },
+});
+
+/** Daily: drop activity older than 90 days so the log stays useful. */
+export const pruneActivity = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    const old = await ctx.db.query("activity").order("asc").take(500);
+    for (const row of old) {
+      if (row._creationTime >= cutoff) break;
+      await ctx.db.delete(row._id);
+    }
   },
 });

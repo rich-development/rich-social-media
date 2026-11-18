@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type FormEvent } from "react";
 import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
-import { useAuth, useClerk, UserButton } from "@clerk/react";
+import { useAuth, useClerk, UserButton, useUser } from "@clerk/react";
 import { BarChart3, CalendarDays, FolderOpen, LayoutDashboard, ListChecks, LogOut, PenSquare, Radio, Settings as Cog } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
@@ -9,6 +9,7 @@ import { roleAtLeast, type Role } from "../convex/shared/platforms";
 import Composer from "./components/Composer";
 import { Loading, useToast } from "./components/ui";
 import { errMsg } from "./lib";
+import Activity from "./pages/Activity";
 import Analytics from "./pages/Analytics";
 import Auth from "./pages/Auth";
 import Calendar from "./pages/Calendar";
@@ -100,6 +101,7 @@ function Trouble({ kind, what }: { kind: "rejected" | "unreachable"; what?: stri
 function Signed() {
   const me = useQuery(api.users.me);
   const store = useMutation(api.users.store);
+  const { user } = useUser();
   const [registered, setRegistered] = useState(false);
   const listing = useQuery(api.workspaces.list, registered ? {} : "skip");
   const acceptInvite = useAction(api.workspaces.acceptInvite);
@@ -113,7 +115,11 @@ function Signed() {
     let cancelled = false;
     (async () => {
       try {
-        await store({});
+        // Name and email from Clerk, used only to label things on screen.
+        await store({
+          displayName: user?.fullName ?? user?.firstName ?? undefined,
+          displayEmail: user?.primaryEmailAddress?.emailAddress ?? undefined,
+        });
         const token = sessionStorage.getItem(INVITE_KEY);
         if (token) {
           sessionStorage.removeItem(INVITE_KEY);
@@ -281,6 +287,7 @@ function Shell({ ws, all, canCreate, onPick, userLabel }: { ws: Workspace; all: 
               <Route path="/library" element={<Library />} />
               <Route path="/channels" element={<Channels />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/activity" element={<Activity />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Dashboard />} />
             </Routes>

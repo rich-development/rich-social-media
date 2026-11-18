@@ -162,7 +162,6 @@ export const finish = internalMutation({
         status: "published", externalPostId: args.externalPostId, permalink: args.permalink,
         publishedAt: Date.now(), lastError: undefined, scheduledFnId: undefined,
       });
-      await logActivity(ctx, { workspaceId: target.workspaceId, postId: target.postId, action: "Published", detail: where });
     } else {
       const error = (args.error ?? "Unknown error").slice(0, 600);
       if (args.errorKind === "auth" && channel) {
@@ -184,7 +183,19 @@ export const finish = internalMutation({
         });
       }
     }
-    await recomputePostStatus(ctx, target.postId);
+    // One line per post once every channel has finished, not one per channel.
+    const result = await recomputePostStatus(ctx, target.postId);
+    if (result && (result.status === "published" || result.status === "partial")) {
+      const done = (await ctx.db.query("postTargets").withIndex("by_post", (q) => q.eq("postId", target.postId)).collect())
+        .filter((t) => t.status === "published");
+      const names = [];
+      for (const t of done) names.push((await ctx.db.get(t.channelId))?.displayName ?? PLATFORM_INFO[t.platform].label);
+      await logActivity(ctx, {
+        workspaceId: target.workspaceId, postId: target.postId,
+        action: result.status === "published" ? "Published" : "Partly published",
+        detail: `${result.published} of ${result.total} channel${result.total === 1 ? "" : "s"}: ${names.join(", ")}`,
+      });
+    }
   },
 });
 

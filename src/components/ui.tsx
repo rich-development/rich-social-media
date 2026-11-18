@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { PLATFORM_INFO, type Platform } from "../../convex/shared/platforms";
-import { errMsg, PLATFORM_MARK, STATUS_LABEL, STATUS_STYLE } from "../lib";
+import type { Id } from "../../convex/_generated/dataModel";
+import { errMsg, fmtDateTime, PLATFORM_MARK, STATUS_LABEL, STATUS_STYLE } from "../lib";
 
 type Toast = { id: number; text: string; bad: boolean };
 const ToastCtx = createContext<{ ok: (t: string) => void; fail: (e: unknown) => void }>({ ok: () => {}, fail: () => {} });
@@ -85,5 +86,39 @@ export function PageHeader({ title, sub, actions }: { title: string; sub?: strin
       </div>
       <div className="flex flex-wrap gap-2">{actions}</div>
     </div>
+  );
+}
+
+export type ActivityItem = { _id: string; at: number; action: string; detail: string | null; level: "info" | "error"; who: string | null; postId: Id<"posts"> | null };
+
+/** Compact activity rows. A row tied to a post opens that post. */
+export function ActivityList({ items, tz, onOpen }: { items: ActivityItem[]; tz: string; onOpen: (postId: Id<"posts">) => void }) {
+  if (items.length === 0) return <div className="card p-4 text-sm text-muted">Nothing here yet.</div>;
+  return (
+    <ul className="card divide-y divide-line">
+      {items.map((a) => {
+        const body = (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className={`mt-1 h-2 w-2 shrink-0 self-start rounded-full ${a.level === "error" ? "bg-bad" : "bg-line"}`} aria-hidden />
+              <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${a.level === "error" ? "text-bad" : ""}`}>{a.action}</span>
+              <span className="shrink-0 text-xs text-muted">{fmtDateTime(a.at, tz)}</span>
+            </div>
+            {(a.detail || a.who) && (
+              <div className={`ml-4 mt-0.5 text-xs text-muted ${a.level === "error" ? "break-words" : "truncate"}`}>
+                {[a.who, a.detail].filter(Boolean).join(" · ")}
+              </div>
+            )}
+          </>
+        );
+        return (
+          <li key={a._id}>
+            {a.postId
+              ? <button className="block w-full px-3 py-2.5 text-left hover:bg-canvas" onClick={() => onOpen(a.postId!)}>{body}</button>
+              : <div className="px-3 py-2.5">{body}</div>}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { Link } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import { useWs } from "../App";
-import { Empty, Loading, PageHeader, PlatformBadge, StatusPill } from "../components/ui";
+import { ActivityList, Empty, Loading, PageHeader, PlatformBadge } from "../components/ui";
 import { fmtDateTime } from "../lib";
 
 export default function Dashboard() {
@@ -10,14 +10,14 @@ export default function Dashboard() {
   const counts = useQuery(api.posts.counts, { workspaceId: ws._id });
   const scheduled = useQuery(api.posts.list, { workspaceId: ws._id, status: "scheduled" });
   const channels = useQuery(api.channels.list, { workspaceId: ws._id });
-  const activity = useQuery(api.workspaces.activity, { workspaceId: ws._id });
+  const activity = useQuery(api.workspaces.activity, { workspaceId: ws._id, limit: 6 });
   if (!counts || !scheduled || !channels || !activity) return <Loading />;
   const broken = channels.channels.filter((c) => c.status === "needs_reauth");
   const stats = [
-    { label: "Scheduled", value: counts.scheduled },
-    { label: "Drafts", value: counts.draft },
-    { label: "Needs approval", value: counts.pending_approval },
-    { label: "Failed", value: counts.failed, bad: counts.failed > 0 },
+    { label: "Scheduled", value: counts.scheduled, tab: "scheduled" },
+    { label: "Drafts", value: counts.draft, tab: "draft" },
+    { label: "Needs approval", value: counts.pending_approval, tab: "pending_approval" },
+    { label: "Failed", value: counts.failed, bad: counts.failed > 0, tab: "failed" },
   ];
   return (
     <>
@@ -34,7 +34,7 @@ export default function Dashboard() {
       )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
-          <Link to="/posts" key={s.label} className="card p-4 hover:border-ink/30">
+          <Link to={`/posts?tab=${s.tab}`} key={s.label} className="card p-4 hover:border-ink/30">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted">{s.label}</div>
             <div className={`mt-1 text-3xl font-bold tabular-nums ${s.bad ? "text-bad" : ""}`}>{s.value}</div>
           </Link>
@@ -60,20 +60,11 @@ export default function Dashboard() {
           )}
         </section>
         <section className="min-w-0">
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted">Activity</h2>
-          <ul className="card divide-y divide-line">
-            {activity.length === 0 && <li className="p-3 text-sm text-muted">No activity yet.</li>}
-            {activity.slice(0, 12).map((a) => (
-              <li key={a._id} className="p-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className={`font-semibold ${a.level === "error" ? "text-bad" : ""}`}>{a.action}</span>
-                  {a.level === "error" && <StatusPill status="failed" />}
-                </div>
-                {a.detail && <div className="mt-0.5 break-words text-xs text-muted">{a.detail}</div>}
-                <div className="mt-0.5 text-xs text-muted/80">{a.who ? `${a.who} · ` : ""}{fmtDateTime(a.at, ws.timezone)}</div>
-              </li>
-            ))}
-          </ul>
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Recent activity</h2>
+            <Link to="/activity" className="text-xs font-semibold text-gold hover:underline">View all</Link>
+          </div>
+          <ActivityList items={activity.items} tz={ws.timezone} onOpen={(postId) => compose({ postId })} />
         </section>
       </div>
     </>

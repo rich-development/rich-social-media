@@ -1,12 +1,13 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Upload } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { useWs } from "../App";
 import { ConfirmDelete } from "../components/Composer";
 import { Empty, Loading, Modal, PageHeader, PlatformBadge, StatusPill, useToast } from "../components/ui";
-import { fmtDateTime, fromLocalInput, parseCsv } from "../lib";
+import { fmtDateTime, fromLocalInput, parseCsv, toLocalInput } from "../lib";
 
 const TABS = [
   { id: "scheduled", label: "Queue" },
@@ -21,7 +22,11 @@ type Tab = (typeof TABS)[number]["id"];
 export default function Posts() {
   const { ws, can, compose } = useWs();
   const toast = useToast();
-  const [tab, setTab] = useState<Tab>("scheduled");
+  // The tab lives in the address (?tab=draft) so links can point at one.
+  const [params, setParams] = useSearchParams();
+  const wanted = params.get("tab");
+  const tab: Tab = TABS.some((t) => t.id === wanted) ? (wanted as Tab) : "scheduled";
+  const setTab = (id: Tab) => setParams({ tab: id }, { replace: true });
   const [importing, setImporting] = useState(false);
   const [rejecting, setRejecting] = useState<Id<"posts"> | null>(null);
   const [reason, setReason] = useState("");
@@ -123,6 +128,26 @@ function BulkImport({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<"queue" | "schedule" | "draft">("queue");
   const [busy, setBusy] = useState(false);
 
+  // A ready-to-edit CSV with the right headers and a few example rows.
+  function downloadTemplate() {
+    const day = 24 * 60 * 60 * 1000;
+    const when = (n: number) => toLocalInput(Date.now() + n * day, ws.timezone).slice(0, 10) + " 09:00";
+    const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const rows = [
+      ["text", "datetime"],
+      ["Replace this with your first post. Keep one post per row.", when(1)],
+      ["Captions can include line breaks, commas, and hashtags.\n\n#example #hashtags", when(2)],
+      ["Leave the datetime empty to add this one to the queue or save it as a draft.", ""],
+    ];
+    const csv = rows.map((r) => r.map(q).join(",")).join("\r\n") + "\r\n";
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "rich-social-import-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function onFile(file: File | undefined) {
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) return toast.fail("That file is too big. Keep it under 2 MB.");
@@ -157,6 +182,7 @@ function BulkImport({ onClose }: { onClose: () => void }) {
     <Modal title="Bulk import" onClose={onClose}>
       <div className="space-y-4 p-5 text-sm">
         <p className="text-muted">Upload a CSV with a <b>text</b> column and an optional <b>datetime</b> column (like 2026-12-01 09:30, in {ws.timezone}). Up to 200 rows. Text only. Add media after import.</p>
+        <button className="btn-ghost" onClick={downloadTemplate}><Download size={15} /> Download template</button>
         <input type="file" accept=".csv,text/csv" className="input" onChange={(e) => void onFile(e.target.files?.[0])} />
         {rows.length > 0 && (
           <>
