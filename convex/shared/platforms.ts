@@ -40,7 +40,7 @@ export const PLATFORM_INFO: Record<Platform, PlatformInfo> = {
     label: "Instagram", maxChars: 2200, maxImages: 10, maxVideos: 1,
     requiresMedia: true, videoOnly: false, supportsFirstComment: true,
     provider: "meta", color: "#E1306C",
-    note: "Needs a Business or Creator account linked to a Facebook Page. Max 30 hashtags.",
+    note: "Needs a Business or Creator account linked to a Facebook Page. Max 30 hashtags. First comment needs the instagram_manage_comments permission on your Meta app.",
   },
   threads: {
     label: "Threads", maxChars: 500, maxImages: 20, maxVideos: 1,

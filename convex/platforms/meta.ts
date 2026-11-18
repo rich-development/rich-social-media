@@ -23,9 +23,13 @@ export const meta: Provider = {
       redirect_uri: redirectUri,
       state,
       response_type: "code",
+      // instagram_manage_comments (first comment on Instagram) is optional: Meta
+      // rejects the whole sign-in if a scope is not enabled on the app. Add it
+      // with META_EXTRA_SCOPES once it is enabled in the Meta dashboard.
       scope: [
         "pages_show_list", "pages_manage_posts", "pages_read_engagement",
-        "instagram_basic", "instagram_content_publish", "instagram_manage_comments", "business_management",
+        "instagram_basic", "instagram_content_publish", "business_management",
+        ...(process.env.META_EXTRA_SCOPES ?? "").split(",").map((x) => x.trim()).filter(Boolean),
       ].join(","),
     });
     return `https://www.facebook.com/${process.env.META_GRAPH_VERSION ?? "v26.0"}/dialog/oauth?${q}`;
@@ -63,6 +67,18 @@ export const meta: Provider = {
   },
 };
 
+/**
+ * The post is already live when this runs, so a failed comment must not fail
+ * the post. Otherwise a retry would publish the post a second time.
+ */
+async function firstComment(network: string, id: string, access_token: string, message: string) {
+  try {
+    await post(`${network} first comment`, `${graph()}/${id}/comments`, { access_token, message });
+  } catch (e) {
+    console.warn(`${network} post went out but the first comment did not:`, e instanceof Error ? e.message : "unknown error");
+  }
+}
+
 export async function publishFacebook(input: PublishInput): Promise<PublishResult> {
   const { accessToken: access_token, channel, text, media, options } = input;
   const page = `${graph()}/${channel.externalId}`;
@@ -86,7 +102,7 @@ export async function publishFacebook(input: PublishInput): Promise<PublishResul
     id = (await post("Facebook post", `${page}/feed`, { access_token, message: text, link: options.link })).body.id;
   }
   if (input.firstComment && videos.length === 0) {
-    await post("Facebook first comment", `${graph()}/${id}/comments`, { access_token, message: input.firstComment });
+    await firstComment("Facebook", id, access_token, input.firstComment);
   }
   return { externalId: id, permalink: `https://www.facebook.com/${id}` };
 }
@@ -133,9 +149,7 @@ export async function publishInstagram(input: PublishInput): Promise<PublishResu
   await waitForContainer(graph(), creationId, access_token, "status_code");
   const published = await post("Instagram publish", `${ig}/media_publish`, { access_token, creation_id: creationId });
   const id: string = published.body.id;
-  if (input.firstComment) {
-    await post("Instagram first comment", `${graph()}/${id}/comments`, { access_token, message: input.firstComment });
-  }
+  if (input.firstComment) await firstComment("Instagram", id, access_token, input.firstComment);
   let permalink: string | undefined;
   try {
     permalink = (await get("Instagram link", `${graph()}/${id}?fields=permalink`, access_token)).body?.permalink;

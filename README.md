@@ -95,7 +95,7 @@ npx convex env set SITE_URL https://your-app-address
 | Pinterest | developers.pinterest.com | `PINTEREST_APP_ID`, `PINTEREST_APP_SECRET` | Trial access may limit who can see Pins until Pinterest upgrades the app. |
 | X | developer.x.com | `X_ENABLED=true`, `X_CLIENT_ID`, `X_CLIENT_SECRET` | Off by default. Check X's current API pricing before turning it on. Text only. |
 
-Optional: `META_GRAPH_VERSION` (default `v26.0`) and `LINKEDIN_API_VERSION` (default `202601`) if a network retires the default version.
+Optional: `META_EXTRA_SCOPES=instagram_manage_comments` turns on first comments for Instagram once that permission is enabled on your Meta app. Also `META_GRAPH_VERSION` (default `v26.0`) and `LINKEDIN_API_VERSION` (default `202601`) if a network retires the default version.
 
 ## Costs
 
