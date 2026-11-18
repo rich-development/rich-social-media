@@ -6,6 +6,7 @@ import { cleanText, fail, logActivity, requireMember, requireUser, userEmail, us
 import { randomToken, sha256Hex } from "./lib/crypto";
 import { isValidTimeZone } from "./lib/time";
 import { vQueueSlot, vRole } from "./schema";
+import { ACTIVITY_KINDS } from "./shared/activity";
 
 const DEFAULT_SLOTS = [
   { days: [1, 2, 3, 4, 5], time: "09:00" },
@@ -236,16 +237,24 @@ export const activity = query({
     workspaceId: v.id("workspaces"),
     /** "error" shows only problems. */
     level: v.optional(v.union(v.literal("info"), v.literal("error"))),
+    /** Narrow to one group of activity types. */
+    kind: v.optional(v.union(
+      v.literal("publishing"), v.literal("scheduling"), v.literal("approvals"), v.literal("channels"), v.literal("team"),
+    )),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { workspaceId, level, limit }) => {
+  handler: async (ctx, { workspaceId, level, kind, limit }) => {
     await requireMember(ctx, workspaceId);
     const take = Math.min(Math.max(limit ?? 8, 1), 300);
     const base = level
       ? ctx.db.query("activity").withIndex("by_workspace_level", (q) => q.eq("workspaceId", workspaceId).eq("level", level))
       : ctx.db.query("activity").withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId));
+    const actions: readonly string[] | null = kind ? ACTIVITY_KINDS[kind].actions : null;
+    const filtered = actions
+      ? base.order("desc").filter((q) => q.or(...actions.map((a) => q.eq(q.field("action"), a))))
+      : base.order("desc");
     // One extra row tells the page whether there is more to load.
-    const rows = await base.order("desc").take(take + 1);
+    const rows = await filtered.take(take + 1);
     const names = new Map<string, string>();
     const items = [];
     for (const r of rows.slice(0, take)) {

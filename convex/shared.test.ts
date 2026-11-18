@@ -1,6 +1,8 @@
+/// <reference types="vite/client" />
 import { describe, expect, test } from "vitest";
 import { nextQueueSlot, zonedParts, zonedTimeToUtc } from "./lib/time";
 import { validateForPlatform } from "./shared/platforms";
+import { ACTIVITY_KINDS } from "./shared/activity";
 
 describe("time zones", () => {
   test("wall clock to UTC, including daylight saving changes", () => {
@@ -37,5 +39,21 @@ describe("network rules", () => {
   });
   test("emoji count as one character", () => {
     expect(validateForPlatform("bluesky", "🔥".repeat(300), [])).toEqual([]);
+  });
+});
+
+describe("activity types", () => {
+  test("every action the backend logs belongs to a filter group", () => {
+    const sources = import.meta.glob(["./**/*.ts", "!./**/*.test.ts", "!./_generated/**"], { eager: true, query: "?raw", import: "default" }) as Record<string, string>;
+    const logged = new Set<string>();
+    for (const code of Object.values(sources)) {
+      for (const m of code.matchAll(/action: "([^"]+)"/g)) logged.add(m[1]);
+      for (const m of code.matchAll(/(?:draft|pending_approval): "([^"]+)"|\? "(Publishing now)" : "(Post scheduled)"|\? "(Published)" : "(Partly published)"/g)) {
+        for (const g of m.slice(1)) if (g) logged.add(g);
+      }
+    }
+    const grouped = new Set(Object.values(ACTIVITY_KINDS).flatMap((k) => [...k.actions] as string[]));
+    expect(logged.size).toBeGreaterThan(15);
+    expect([...logged].filter((a) => !grouped.has(a))).toEqual([]);
   });
 });

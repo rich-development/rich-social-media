@@ -314,6 +314,13 @@ describe("scheduling and publishing", () => {
     expect(items.some((a) => a.action === "Draft saved")).toBe(false);
     expect(items.find((a) => a.action === "Publishing now")?.who).toBe("owner");
     expect((await owner.query(api.posts.get, { postId }))?.authorName).toBe("owner");
+    // Type filters.
+    const byKind = async (kind: "publishing" | "scheduling" | "approvals" | "channels" | "team") =>
+      (await owner.query(api.workspaces.activity, { workspaceId, kind, limit: 50 })).items.map((a) => a.action);
+    expect(await byKind("publishing")).toEqual(["Published", "Publishing now"]);
+    expect(await byKind("channels")).toEqual(["Channels connected"]);
+    expect(await byKind("team")).toEqual(["Workspace created"]);
+    expect(await byKind("approvals")).toEqual([]);
     // Problems filter shows only failures.
     expect((await owner.query(api.workspaces.activity, { workspaceId, level: "error" })).items).toHaveLength(0);
 
