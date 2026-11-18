@@ -6,8 +6,9 @@
   --color-canvas: #f7f4ef;
   --color-line: #e4ded4;
   --color-muted: #736a5e;
-  --color-gold: #b07a14;
-  --color-gold-soft: #f6ead0;
+  /* Copper, taken from the Rich Social logo. Dark enough for text on white. */
+  --color-gold: #a9541f;
+  --color-gold-soft: #f7e7da;
   --color-ok: #1f7a4d;
   --color-warn: #a35c00;
   --color-bad: #b3261e;

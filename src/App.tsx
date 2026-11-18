@@ -240,7 +240,10 @@ function Shell({ ws, all, canCreate, onPick, userLabel }: { ws: Workspace; all: 
     <WsCtx.Provider value={ctx}>
       <div className="flex min-h-full">
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-ink p-4 text-white md:flex">
-          <div className="px-2 text-lg font-bold tracking-tight">Rich Social</div>
+          <div className="flex items-center gap-2.5 px-1">
+            <img src="/logo-mark.png" alt="" width={36} height={36} className="h-9 w-9" />
+            <span className="text-sm font-semibold uppercase tracking-[0.22em] text-[#fcf6e4]">Rich Social</span>
+          </div>
           <label className="mt-5 px-2 text-[11px] font-semibold uppercase tracking-wider text-white/40" htmlFor="ws-pick">Workspace</label>
           <select
             id="ws-pick" value={ws._id}
@@ -274,6 +277,7 @@ function Shell({ ws, all, canCreate, onPick, userLabel }: { ws: Workspace; all: 
         </aside>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 overflow-x-auto bg-ink p-2 text-white md:hidden">
+            <img src="/logo-mark.png" alt="Rich Social" width={28} height={28} className="h-7 w-7 shrink-0" />
             {NAV.map(({ to, label }) => (
               <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => `whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-semibold ${isActive ? "bg-white/15" : "text-white/60"}`}>{label}</NavLink>
             ))}

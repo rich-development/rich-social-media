@@ -9,7 +9,9 @@ const contact = import.meta.env.VITE_CONTACT_EMAIL as string | undefined;
 function Page({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12">
-      <a href="/" className="text-sm font-bold tracking-tight">Rich Social</a>
+      <a href="/" className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em]">
+        <img src="/favicon.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" /> Rich Social
+      </a>
       <h1 className="h1 mt-6">{title}</h1>
       <p className="mt-1 text-xs text-muted">Last updated November 17, 2026</p>
       <div className="mt-6 space-y-5 text-sm leading-relaxed [&_h2]:mt-8 [&_h2]:text-base [&_h2]:font-bold [&_li]:mt-1 [&_ul]:list-disc [&_ul]:pl-5">{children}</div>

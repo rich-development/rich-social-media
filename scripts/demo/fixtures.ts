@@ -10,8 +10,8 @@ const ws = {
 const art = (a: string, b: string) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="400" height="400" fill="url(#g)"/><circle cx="290" cy="120" r="60" fill="#fff" opacity=".25"/></svg>`)}`;
 const media = [
-  { _id: "m1", kind: "image", name: "keynote-stage.jpg", size: 840_000, alt: "Speaker on stage", contentType: "image/jpeg", url: art("#15120f", "#b07a14"), createdAt: now - DAY },
-  { _id: "m2", kind: "image", name: "quote-card.png", size: 320_000, alt: "", contentType: "image/png", url: art("#b07a14", "#f6ead0"), createdAt: now - 2 * DAY },
+  { _id: "m1", kind: "image", name: "keynote-stage.jpg", size: 840_000, alt: "Speaker on stage", contentType: "image/jpeg", url: art("#15120f", "#a9541f"), createdAt: now - DAY },
+  { _id: "m2", kind: "image", name: "quote-card.png", size: 320_000, alt: "", contentType: "image/png", url: art("#a9541f", "#f7e7da"), createdAt: now - 2 * DAY },
   { _id: "m3", kind: "image", name: "workshop.jpg", size: 1_400_000, alt: "", contentType: "image/jpeg", url: art("#2a2520", "#736a5e"), createdAt: now - 3 * DAY },
 ];
 const ch = (id: string, platform: string, displayName: string, handle: string, status = "active") => ({
